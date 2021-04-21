@@ -31,12 +31,13 @@ def get_loadings(pca, df):
     return(results)
 
 def scree_plot(pca, name):
+    pc_values = np.arange(pca.n_components_)+1
     plt.figure(figsize=(10, 8))
-    plt.plot(pca.explained_variance_)
+    plt.plot(pc_values, pca.explained_variance_, 'bo-', linewidth=2)
     plt.title('Scree Plot of PCA: Component Eigenvalues for '+name)
     #plt.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.xlabel('Principal Component')
-    plt.ylabel('Eigenvalue')
+    plt.ylabel('Proportion of Variance Explained (Eigenvalue)')
     plt.axhline(y=1, linewidth=1, color='r', alpha=0.5)
     plt.show()
 
@@ -55,17 +56,18 @@ def create_explained_variance_plot(df_std, name):
 
 def cumulative_variance_plot(df_std, name):
     pca = PCA().fit(df_std)
-    PC_values = np.arange(pca.n_components_)
+    PC_values = np.arange(pca.n_components_)+1
     plt.figure(figsize=(10,8))
     plt.plot(PC_values, np.cumsum(pca.explained_variance_ratio_), 'bo--', linewidth=2)
-    plt.title("Cumulative Explained Variance by Components for "+name)
-    plt.xlabel("Number of components")
+    #plt.title("Cumulative Explained Variance by Components for "+name)
+    #plt.xlim(0.5,len(df_std[0]))
+    plt.xlabel("Number of Components")
     plt.ylabel("Cumulative Explained Variance")
     plt.axhline(y=0.8, linewidth=1, color='r', alpha=0.5)
     plt.show()
 
-def loadings_plot(pca, pca_values, columns, name):
-    plt.figure(figsize=(10, 8))
+def loadings_plot(pca, loadings, columns, name):
+    plt.figure(figsize=(8, 8))
     plt.rcParams.update({'font.size': 14})
     # Plot circle
     # Create a list of 500 points with equal spacing between -1 and 1
@@ -89,20 +91,20 @@ def loadings_plot(pca, pca_values, columns, name):
 
     # Define color list
     colors = ['blue', 'red', 'green', 'black', 'purple', 'brown']
-    if len(pca_values[0]) > 6:
-        colors = colors * (int(len(pca_values[0]) / 6) + 1)
+    if len(loadings[0]) > 6:
+        colors = colors * (int(len(loadings[0]) / 6) + 1)
 
     add_string = ""
-    for i in range(len(pca_values[0])):
-        xi = pca_values[0][i]
-        yi = pca_values[1][i]
+    for i in range(len(loadings[:,0])):
+        xi = loadings[i,0]
+        yi = loadings[i,1]
         plt.arrow(0, 0,
                   dx=xi, dy=yi,
                   head_width=0.03, head_length=0.03,
                   color=colors[i], length_includes_head=True)
         #add_string = f" ({round(xi, 2)} {round(yi, 2)})"
-        plt.text(pca_values[0, i],
-                 pca_values[1, i], fontsize=6,
+        plt.text(loadings[i,0]*1.2,
+                 loadings[i,1]*1.15, fontsize=10,
                  s=columns[i])# + add_string,
 
     plt.xlabel(f"Component 1 ({round(pca.explained_variance_ratio_[0] * 100, 2)}%)")
@@ -112,7 +114,7 @@ def loadings_plot(pca, pca_values, columns, name):
 
 def score_plot(x_pca, name):
     plt.figure(figsize=(10, 8))
-    sns.scatterplot(x_pca[:, 0], x_pca[:, 1],
+    sns.scatterplot(x=x_pca[:, 0], y=x_pca[:, 1],
                     palette="Set1", legend='full', s=100).legend(loc='center left', bbox_to_anchor=(1, 0.5))
     plt.xlabel('Principal Component 1 ', fontsize=14)
     plt.ylabel('Principal Component 2 ', fontsize=14)
@@ -121,35 +123,32 @@ def score_plot(x_pca, name):
     plt.title("Score plot-"+name)
     plt.show()
 
-def biplot(score,coeff,pcax,pcay,name, labels=None):
-    pca1=pcax-1
-    pca2=pcay-1
-    xs = score[:,pca1]
-    ys = score[:,pca2]
+def biplot(score, loadings, name, labels=None):
+    xs = score[:,0]
+    ys = score[:,1]
     n=score.shape[1]
     scalex = 1.0/(xs.max()- xs.min())
     scaley = 1.0/(ys.max()- ys.min())
     plt.figure(figsize=(10,8))
-    plt.scatter(xs*scalex,ys*scaley)
+    plt.scatter(xs*scalex,ys*scaley, alpha=0.6)
     for i in range(n):
-        plt.arrow(0, 0, coeff[i,pca1], coeff[i,pca2],color='r',alpha=0.5)
+        plt.arrow(0, 0, loadings[i, 0], loadings[i, 1], head_width=0.03, head_length=0.03, length_includes_head=True, color='r', alpha=0.5)
         if labels is None:
-            plt.text(coeff[i,pca1]* 1.15, coeff[i,pca2] * 1.15, "Var"+str(i+1), color='g', ha='center', va='center')
+            plt.text(loadings[i, 0]* 1.2, loadings[i, 1] * 1.2, "Var" + str(i + 1), color='g',fontsize=7, ha='center', va='center')
         else:
-            plt.text(coeff[i,pca1]* 1.15, coeff[i,pca2] * 1.15, labels[i], color='g', ha='center', va='center')
+            plt.text(loadings[i, 0]* 1.2, loadings[i, 1] * 1.15, labels[i], color='#306754', fontsize=12,ha='center', va='center')
     plt.xlim(-1,1)
     plt.ylim(-1,1)
-    plt.xlabel("PC{}".format(pcax))
-    plt.ylabel("PC{}".format(pcay))
+    plt.xlabel("PC{}".format(0))
+    plt.ylabel("PC{}".format(1))
     plt.title("Biplot - "+name)
     plt.grid()
     plt.show()
 
 def pca_analysis(df, name):
-    if not (name=="test-world"):
-        df_std = StandardScaler().fit_transform(df)
-        pca = PCA()
-        pca_scores = pca.fit(df_std).transform(df_std)
+    df_std = StandardScaler().fit_transform(df)
+    pca = PCA()
+    pca_scores = pca.fit(df_std).transform(df_std)
     loadings = pca.components_
     num_pc = pca.n_features_
     print('\nPCA Eigenvalues: \n%s' % pca.explained_variance_)
@@ -161,7 +160,7 @@ def pca_analysis(df, name):
     cumulative_variance_plot(df_std, name)
     loadings_plot(pca, loadings, df.columns, name)
     score_plot(pca_scores, name)
-    biplot(pca_scores, loadings, 1, 2, name, labels=df.columns.values)
+    biplot(pca_scores, loadings, name, labels=df.columns.values)
 
 def pairwiseCorr(df):
     # get the column names as list, which are gene names
@@ -188,7 +187,7 @@ def plot_correlations(df, name):
     sns.heatmap(df.corr(), annot=False) #, fmt=".2f"
     plt.show()
 
-def factor_analysis(df, name, all_factors=True):
+def factor_analysis(df, name, not_test_set=True):
     chi_square_value,p_value=calculate_bartlett_sphericity(df)
     kmo_all, kmo_model = calculate_kmo(df)
     pairwise_correlations = pairwiseCorr(df)
@@ -198,7 +197,7 @@ def factor_analysis(df, name, all_factors=True):
     print(kmo_model)
     print("\n"+"Pairwise correlations:")
     print(pairwise_correlations)
-    if all_factors==True:
+    if not_test_set==True:
         eigenvalues = get_factor_eigenvalues(df)
         print("\n" + "FA Eigenvalues:")
         print(eigenvalues)
@@ -222,11 +221,51 @@ def describe_data(df_pca):
     summary = summary.transpose()
     print(summary)
 
+def run_component_analysis(dataset, name, not_test_set):
+    print("\n"+"\n"+"\n"+"--------------Investigating features in "+name+" dataset----------------")
+    #print(dataset.info())
+    #print(dataset.describe())
+    factor_analysis(dataset, name, not_test_set)
+    pca_analysis(dataset, name)
+
+    #print("\n"+"\n"+"----Testing with reduced nr of factors----")
+    #reduced_correlation_df = remove_correlated_columns(dataset)
+    #print(reduced_correlation_df.columns)
+    #factor_analysis(reduced_correlation_df, name, all_factors=False)
+
 def cross_validation_pca(df):
     train, test = train_test_split(df, shuffle=True, train_size=0.75, test_size=0.25)
     train, test = train.reset_index(drop=True), test.reset_index(drop=True)
-    run_component_analysis(train, "train-world")
-    factor_analysis(test, "test-world") #Can not do all the pca_analysis_tests on the test set
+    #run_component_analysis(train, "train-world", not_test_set=True)
+    #run_component_analysis(test, "test-world", not_test_set=False) #Can not do all the pca_analysis_tests on the test set
+
+    scaler = StandardScaler()
+    df_std_train = scaler.fit_transform(train)
+    df_std_test = scaler.transform(test)
+    pca = PCA()
+    pca_scores_train = pca.fit_transform(df_std_train)
+    pca_scores_test = pca.transform(df_std_test)
+    loadings = pca.components_
+    num_pc = pca.n_features_
+    explained_variance = pca.explained_variance_ratio_
+
+
+    scree_plot(pca, "CV")
+
+    print('\nPCA Eigenvalues: \n%s' % pca.explained_variance_)
+    loadings_df = get_loadings(pca, df)
+    #print('Eigenvectors \n%s' % pca.components_)
+    #USING THE KAISER CRITERION, ONLY THE 4 FIRST PRINCIPAL COMPONENTS ARE SIGNIFICANT AND SHOULD BE ANALYZED.
+    create_explained_variance_plot(df_std_train, "Train data")
+    cumulative_variance_plot(df_std_train, "Train Data")
+    score_plot(pca_scores_train, "Train")
+    score_plot(pca_scores_test, "Test")
+    biplot(pca_scores_train, loadings, "Train Loadings", labels=df.columns.values)
+    loadings_plot(pca, loadings, df.columns, " ")
+    #pca = PCA(n_components=1)
+    #X_train = pca.fit_transform(df_std_train)
+    #X_test = pca.transform(df_std_test)
+
 
     base = pd.Series(range(len(train)))
     print("\n")
@@ -261,31 +300,19 @@ def cross_validation_pca(df):
     X_test = pca.transform(X_test)
     #Test more here****
 
-def run_component_analysis(dataset, name):
-    print("\n"+"\n"+"\n"+"--------------Investigating features in "+name+" dataset----------------")
-    #print(dataset.info())
-    #print(dataset.describe())
-    factor_analysis(dataset, name)
-    pca_analysis(dataset, name)
-
-    #print("\n"+"\n"+"----Testing with reduced nr of factors----")
-    #reduced_correlation_df = remove_correlated_columns(dataset)
-    #print(reduced_correlation_df.columns)
-    #factor_analysis(reduced_correlation_df, name, all_factors=False)
-
 
 def get_factors_for_index(dataset, cluster=False):
     if cluster==True:
-        relevant_data = dataset.loc[(dataset.Segment == "Cluster 12") & (dataset.Year == 2010)].reset_index(drop=True)
+        relevant_data = dataset.loc[(dataset["Cluster Name"] == "Cluster 12") & (dataset["Year"] == 2010)].reset_index(drop=True)
     else:
-        relevant_data = dataset.loc[(dataset.Year == 2010)]
+        relevant_data = dataset.loc[(dataset["Year"] == 2010)]
         relevant_data= relevant_data.dropna().reset_index(drop=True)
 
     iso_column = relevant_data[['ISO']]
-    vulnerability_data = relevant_data[['Yearly_Fatality_Sum', 'Yearly_Disaster_Count', 'Population Density',
-         'Age Dependency', 'Population Growth', 'Rural Population', 'Urban Population', 'Coastal Population',
-         'GDP', 'GINI', 'Per Capita Income', 'Poverty Headcount', 'Unemployment Rate',
-         'Health Expenditure', 'HAQ_Index', 'AVG Years of Schooling', 'Population with tertiary schooling']]
+    vulnerability_data = relevant_data[['Yearly Fatalities', 'Yearly #Disasters', 'PD',
+         'Age Dependency', 'Pop. Growth', 'Rural Pop.', 'Urban Pop.', 'Coastal Pop.',
+         'GDP', 'GINI', 'Per Cap Income', 'Poverty', 'Unemployment',
+         'Health Exp.', 'HAQ Index', "Schooling Duration", "Teritary Education"]]
     return vulnerability_data, iso_column
 
 
@@ -297,7 +324,7 @@ if __name__ == "__main__":
     #TESTING WITH MAX NR OF COUNTRIES:
     dataset_in_focus = worldwide_2010 #cluster_2010
     name_in_focus = " world" #" cluster countries"
-    run_component_analysis(dataset_in_focus,name_in_focus) #change dataset to cluster2010 here to see only cluster
+    run_component_analysis(dataset_in_focus,name_in_focus, not_test_set=True) #change dataset to cluster2010 here to see only cluster
     cross_validation_pca(dataset_in_focus)
 
     #Add scores to dataframe with ISO
