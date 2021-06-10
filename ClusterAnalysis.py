@@ -1,24 +1,13 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from factor_analyzer.factor_analyzer import calculate_bartlett_sphericity, FactorAnalyzer
-from factor_analyzer.factor_analyzer import calculate_kmo
-from scipy.stats.stats import pearsonr
-import seaborn as sns
-import itertools
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-
 
 def get_base_dataset():
     base_dataset = pd.read_excel("BASE_DF.xlsx", index_col=0)
     emdat = pd.read_excel('emdat.xlsx', sheet_name='emdat data')
     return base_dataset, emdat
 
-# PLOT
-def standardPlot(xaxis, yaxis, x_label, y_label, rotation=70, plot_title=" ", bottom=0.45, size=(10, 8)):
+def standard_plot(xaxis, yaxis, x_label, y_label, rotation=70, plot_title=" ", bottom=0.45, size=(10, 8)):
     plt.figure(figsize=size).subplots_adjust(bottom=bottom)
     plt.plot(xaxis, yaxis)
     plt.title(plot_title)
@@ -27,8 +16,7 @@ def standardPlot(xaxis, yaxis, x_label, y_label, rotation=70, plot_title=" ", bo
     plt.xticks(rotation=rotation)
     plt.show()
 
-# NA ANALYSIS
-def hasNA(dataset):
+def has_NA(dataset):
     na_vaules, xaxis, complete_columns = [], [], []
     for column in dataset.columns:
         if dataset[column].isnull().values.any():
@@ -37,13 +25,13 @@ def hasNA(dataset):
         else:
             complete_columns.append(column)
     na_vaules.sort()
-    standardPlot(xaxis, na_vaules, x_label="Columns with NA values", y_label="Number of NA values")
+    standard_plot(xaxis, na_vaules, x_label="Columns with NA values", y_label="Number of NA values")
     return zip(xaxis, na_vaules), complete_columns
 
 def generalExplorationCluster(within_cluster):
     print(within_cluster.Country.value_counts())
     print(len(within_cluster))
-    zipobj, complete_cols = hasNA(within_cluster)
+    zipobj, complete_cols = has_NA(within_cluster)
     return complete_cols
 
 def getRelevantCountries():
@@ -75,7 +63,7 @@ def convert_month(df):
     df["Month Name"] = df["Start Month"].replace(month_dict)
     return df
 
-def create_Disaster_Dataset(analysis_dataset):
+def create_disaster_dataset(analysis_dataset):
     #Retrieve the observations from the countries in the dataset after filtering
     correct_countries_dataset = filterDataset_relevantCountries(analysis_dataset)
     #Drop the country variable from EMDAT
@@ -87,9 +75,8 @@ def create_Disaster_Dataset(analysis_dataset):
     # Turn month numbers into names:
     disaster_dataset = convert_month(disaster_dataset)
     #Add general country information for all countries
-    disaster_dataset = add_Country_General_Data(disaster_dataset)
+    disaster_dataset = add_country_general_data(disaster_dataset)
     disaster_dataset = addOutlierDetails(disaster_dataset)
-
     return disaster_dataset
 
 def check_data_availability(datasets):
@@ -116,11 +103,6 @@ def extractRelevantCountriesFromDict(dict):
     return dict
 
 def read_datasets():
-    #Geography and landscape
-    #low_areas = pd.read_excel("elevation_below_5.xls")
-    #low_areas_rural = pd.read_excel("elevation_rural.xls")
-    #low_areas_urban = pd.read_excel("elevation_urban.xls")
-    #agricultural_land = pd.read_excel("agricultural_land.xls")
 
     #Population:
     PD =  pd.read_excel('External_Data/Population_Density.xls')
@@ -162,7 +144,6 @@ def read_datasets():
                 #'Low Elevation Areas':low_areas, 'Low Elevation RURAL':low_areas_rural, 'Low Elevation URBAN':low_areas_urban,
                 'GDP': gdp,'GDP per Cap':gdp_per_cap, 'GINI':gini, 'Per Cap Income': income, 'Poverty': poverty_headcount,
                 'Unemployment': unemployed, 'Health Exp.': health_expenditure}
-    #check_data_availability(world_bank_datasets)
 
     external_datasets = {'Health Index':healthcare_index, 'Mean Years of Schooling': mean_years_schooling, "Teritary Education": tertiary_education}
 
@@ -172,7 +153,7 @@ def read_datasets():
 
     return world_bank_datasets, external_datasets
 
-def create_Country_Yearly(emdat_yearly, datasets, other_datasets):
+def create_country_yearly(emdat_yearly, datasets, other_datasets):
     #Retrieving the ISO column, as well as all the columns representing 1960 to 2020.
     columns_world_bank_dataset = [1] + list(range(4,65))
     yearly_country_data = emdat_yearly
@@ -185,10 +166,10 @@ def create_Country_Yearly(emdat_yearly, datasets, other_datasets):
         yearly_country_data=yearly_country_data.merge(dataset, on=["ISO", "Year"], how="outer")
 
     #Add constant country information such as Name, Land area etc.
-    yearly_country = add_Country_General_Data(yearly_country_data)
+    yearly_country = add_country_general_data(yearly_country_data)
     return yearly_country
 
-def add_Country_General_Data(dataset):
+def add_country_general_data(dataset):
     COUNTRY_GENERAL = pd.read_excel('COUNTRY_GENERAL.xlsx', index_col=0)
     dataset = dataset.merge(COUNTRY_GENERAL, on="ISO", how="left")
     return dataset
@@ -218,23 +199,51 @@ def create_fatality_regression(COUNTRY_YEARLY):
     for iso in COUNTRY_YEARLY.ISO.unique():
         country_data = COUNTRY_YEARLY.loc[COUNTRY_YEARLY.ISO==iso]
         country_data = country_data.loc[country_data.Year>1900]
+        if iso == "BGD":
+            country_data.loc[country_data.Year == 1943, "Yearly Fatalities"] = 300000
         country_data = country_data.drop(country_data[np.isnan(country_data['Yearly Fatalities'])].index)
-        country_data = country_data.drop(country_data[country_data['Yearly Fatalities'] == 0].index)
-        x = np.array(country_data['Year']).reshape((-1, 1))
-        y=country_data['Yearly Fatalities']
         if len(country_data)>0:
-            model = LinearRegression().fit(x, y)
-            y_pred = model.predict(x)
-            d = np.polyfit(country_data['Year'], country_data['Yearly Fatalities'].fillna(0), 1)
+            d = np.polyfit(country_data['Year'], country_data['Yearly Fatalities'], 1)
             f = np.poly1d(d)
-            #country_data["Trend_Line"] = f(country_data['Year'])
-            country_data["Trend Line"] = y_pred
-
+            country_data["Trend Line"] = f(country_data['Year'])
             COUNTRY_YEARLY = COUNTRY_YEARLY.merge(country_data.reset_index(drop=True)[["ISO", "Year", "Trend Line"]], on=["ISO", "Year"], how='left')
             if "Trend Line_x" in COUNTRY_YEARLY.columns:
                 COUNTRY_YEARLY["Trend Line"] = COUNTRY_YEARLY["Trend Line_x"].fillna(COUNTRY_YEARLY["Trend Line_y"]).reset_index()["Trend Line_x"]
                 COUNTRY_YEARLY=COUNTRY_YEARLY.drop(columns=["Trend Line_x", "Trend Line_y"])
     return COUNTRY_YEARLY
+
+def create_df_aggregate_by_country(dataset, aggcolumn, aggmethod, years=None, groupby_column="ISO"):
+        if years != None:
+            dataset = dataset.loc[(dataset['Year'] > (2019 - years)) & (dataset['Year'] < 2020)]
+        disasters_per_country = dataset.groupby([groupby_column]).agg(
+            {aggcolumn: aggmethod}).reset_index()
+        disastercount_df = disasters_per_country[[groupby_column, aggcolumn]]
+        if aggcolumn == "Total Deaths" and years == 5:
+            disastercount_df.rename(columns={"Total Deaths": "Fatality 5-Year-Mean"}, inplace=True)
+        return disastercount_df
+
+def create_moving_average(df, year):
+    full_data = df.copy()
+    df = df.loc[df.Year > year]
+
+    #Rolling
+    rolling1 = df.groupby('ISO', as_index=False).rolling(3, min_periods=1)['Yearly Fatalities'].mean(skipNa=True)#.reset_index(inplace=True)
+    rolling1.index = rolling1.index.get_level_values(1)
+    rolling1 = pd.DataFrame(rolling1).rename(columns={"Yearly Fatalities": "rol avg 1"})
+
+    #Rolling with interpolation
+    df['bfill'] = df.groupby(['ISO'])['Yearly Fatalities'].bfill()  # previous month
+    df['interp'] = df.groupby(['ISO'])['Yearly Fatalities'].apply(lambda x: x.interpolate())
+    rolling2 = df.groupby(['ISO']).rolling(3, min_periods=1)['interp'].mean(skipNa=True)
+    rolling2.index = rolling2.index.get_level_values(1)
+    rolling2 = pd.DataFrame(rolling2).rename(columns={"interp": "rol avg 2"})
+
+    #Add to dataset
+    full_data = full_data.merge(rolling1, how='left', left_index=True, right_index=True)
+    full_data = full_data.merge(rolling2, how='left', left_index=True, right_index=True)
+    full_data = full_data.merge(df[['bfill']], how='left', left_index=True, right_index=True)
+
+    return full_data
 
 #MAIN:
 if __name__ == "__main__":
@@ -242,42 +251,19 @@ if __name__ == "__main__":
     base_dataset, emdat = get_base_dataset()
 
     #Create disaster event dataset
-    DISASTER_DF = create_Disaster_Dataset(base_dataset)
+    DISASTER_DF = create_disaster_dataset(base_dataset)
     DISASTER_DF.to_excel("/Users/jannahovstad/PycharmProjects/Master//DISASTER_DF.xlsx")
-
 
     #Create country and year dataset:
     emdat_yearly = create_disasters_yearly(DISASTER_DF)
+    fatality_five_year_mean = create_df_aggregate_by_country(base_dataset, aggcolumn='Total Deaths', aggmethod='sum', years=5)
+    base_dataset['pandas_SMA_5'] = base_dataset.loc[:, ["Total Deaths"]].rolling(window=5).mean()
+
+    emdat_yearly = emdat_yearly.merge(fatality_five_year_mean, on="ISO", how="left")
     world_bank_datasets, other_datasets = read_datasets()
-    COUNTRY_YEARLY = create_Country_Yearly(emdat_yearly, world_bank_datasets, other_datasets)
-    COUNTRY_YEARLY_w_trendline = create_fatality_regression(COUNTRY_YEARLY)
-    COUNTRY_YEARLY_w_trendline.to_excel("/Users/jannahovstad/PycharmProjects/Master//COUNTRY_YEARLY.xlsx")
+    COUNTRY_YEARLY = create_country_yearly(emdat_yearly, world_bank_datasets, other_datasets)
 
-    #complete_columns = generalExplorationCluster(within_cluster)
-    #investigateNAbyCountry(within_cluster, complete_columns)
+    COUNTRY_YEARLY_full= create_fatality_regression(COUNTRY_YEARLY)
+    #COUNTRY_YEARLY_full = create_moving_average(COUNTRY_YEARLY_trendline, 1990)
 
-
-
-
-
-
-
-
-#DELETED FROM createVulnerabilityIndex:
-
-#TESTING MULTIBLOCK PCA
-# population_component = cluster_2010[['Population Density','Age Dependency', 'Population Growth', 'Rural Population', 'Urban Population','Coastal Population']]
-# economy_component = cluster_2010[['GDP', 'GINI', 'Per Capita Income', 'Poverty Headcount']]
-# disaster_component = cluster_2010[['Yearly_Fatality_Sum', 'Yearly_Disaster_Count']]
-# education_component = cluster_2010[['Unemployment Rate', 'AVG Years of Schooling', 'Population with tertiary schooling']]
-# health_component = cluster_2010[['Health Expenditure', 'HAQ_Index']]
-# isoframe = cluster_2010["ISO"].reset_index(drop=True)
-# components = [population_component, economy_component, disaster_component, education_component, health_component]
-# i = 0
-# for component in components:
-#     name = "Vulnerability Index " + str(i)
-#     isoframe[name], pca = createPCAScores(component, nr_pca_components=1)
-#     i += 1
-# print(isoframe)
-
-
+    COUNTRY_YEARLY_full.to_excel("/Users/jannahovstad/PycharmProjects/Master//COUNTRY_YEARLY.xlsx")
