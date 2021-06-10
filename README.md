@@ -1,5 +1,6 @@
 # Thesis
 
-This master thesis consist of both Python code and PowerBI analysis. The scope of the project include three main subgoals, namely creating a cluster of countries, a vulnerability index and analyzing fatality data.
-The purpose of the clustering algorithm is to group countries that make sense to compare with regards to climate-driven natural disasters. 
-The EM-DAT database is filtered into a dataset without noisy data and only fatal, climate-driven events. This base-dataset is further modified and extended by merging other external datasets to achieve each of these subgoals.
+This master thesis consist of both Python code and PowerBI analysis. The report is the result of the master’s project which is the final step of the five-year Engineering and ICT Master’s Degree (Ingeniørvitenskap og IKT) at the Norwegian University of Science and Technology (NTNU) in Trondheim. The project is carried out in the spring semester of 2021 and the topic of the report is selected from the field of Reliability, Availability, Maintainability and Safety (RAMS). The work is based on a literature review conducted in a specialization project that was carried out in the autumn semester of 2020, which is the second-last semester of the integrated master's degree.
+
+
+The purpose of the thesis is to enhance the understanding of natural disaster mortality and unravel underlying causes and influential factors that can inform decision making and be relevant for risk reduction efforts. This is achieved by analyzing natural disaster data and using data science techniques to investigate patterns, outcomes, and external factors that affect mortality across a smaller group of similar countries. For this reason, the work concerns the creation of a clustering algorithm, a social vulnerability index, and an interactive report where spatio-temporal fatality trends can and has been analyzed.
